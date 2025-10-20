@@ -1,0 +1,21 @@
+
+
+
+Layer,Input Shape,Output Shape,Param #,"GEMM Operations (Forward: M, N, K)","GEMM Operations (Backward: M, N, K)"
+Embedding,"[1, 4096]","[1, 4096, 7168]",~918M,"Forward: M=B*S=4,096, N=H=7,168, K=V=128,256","Backward: ∇Wemb \nabla W_{emb} ∇Wemb​: M=V=128,256, N=4,096, K=H=7,168; ∇X \nabla X ∇X: M=4,096, N=H=7,168, K=V=128,256"
+Pre-Attention RMSNorm,"[1, 4096, 7168]","[1, 4096, 7168]",~14.3K,None (element-wise),None (element-wise: norm deriv)
+MLA: Q Projection,"[1, 4096, 7168]","[1, 4096, 1536]",~11M,"Forward: M=4,096, N=R_q=1,536, K=H=7,168","Backward: ∇Wq \nabla W_q ∇Wq​: M=R_q=1,536, N=4,096, K=H=7,168; ∇X \nabla X ∇X: M=4,096, N=H=7,168, K=R_q=1,536"
+MLA: K Projection,"[1, 4096, 7168]","[1, 4096, 512]",~3.7M,"Forward: M=4,096, N=R_{kv}=512, K=7,168","Backward: ∇Wk \nabla W_k ∇Wk​: M=R_{kv}=512, N=4,096, K=7,168; ∇X \nabla X ∇X: M=4,096, N=H=7,168, K=R_{kv}=512"
+MLA: V Projection,"[1, 4096, 7168]","[1, 4096, 512]",~3.7M,"Forward: M=4,096, N=R_{kv}=512, K=7,168","Backward: ∇Wv \nabla W_v ∇Wv​: M=R_{kv}=512, N=4,096, K=7,168; ∇X \nabla X ∇X: M=4,096, N=H=7,168, K=R_{kv}=512"
+MLA: Attention Scores,"Q: [1, 128, 4096, 192], K: [1, 128, 4096, 192]","[1, 128, 4096, 4096]",0,"Forward: M=S=4,096, N=S=4,096, K=(D_{qk-nope} + D_{qk-rope})=192 (per head, BN_h=1128 batches)","Backward: ∇K \nabla K ∇K: M=S=4,096, N=(128+64)=192, K=S=4,096; ∇Q \nabla Q ∇Q: M=4,096, N=192, K=4,096 (per head, B*N_h)"
+MLA: Attention Output,"Scores: [1, 128, 4096, 4096], V: [1, 128, 4096, 128]","[1, 128, 4096, 128]",0,"Forward: M=S=4,096, N=D_v=128, K=S=4,096 (per head, B*N_h)","Backward: ∇V \nabla V ∇V: M=S=4,096, N=D_v=128, K=S=4,096; ∇S \nabla S ∇S: M=4,096, N=4,096, K=128 (per head, B*N_h)"
+MLA: Output Projection,"[1, 4096, 1536]","[1, 4096, 7168]",~11M,"Forward: M=4,096, N=H=7,168, K=R_q=1,536","Backward: ∇Wo \nabla W_o ∇Wo​: M=R_q=1,536, N=4,096, K=H=7,168; ∇A \nabla A ∇A: M=4,096, N=R_q=1,536, K=H=7,168"
+Residual (Attention),"[1, 4096, 7168] + [1, 4096, 7168]","[1, 4096, 7168]",0,None,None (element-wise: grad add)
+Pre-MoE RMSNorm,"[1, 4096, 7168]","[1, 4096, 7168]",~14.3K,None,None (element-wise)
+MoE: Router,"[1, 4096, 7168]","[1, 4096, 256]",~1.8M,"Forward: M=4,096, N=E=256, K=H=7,168","Backward: ∇Wr \nabla W_r ∇Wr​: M=E=256, N=4,096, K=H=7,168; ∇X \nabla X ∇X: M=4,096, N=H=7,168, K=E=256"
+MoE: Expert Dispatch,"[1, 4096, 7168]","~[KBS/EP, 7168] = [512, 7168] (per GPU)",0,All-to-all (no GEMM),All-to-all (reverse)
+"MoE: Expert FFN (per expert, 32/GPU)","[T~512, 7168]","[T~512, 2048]",~29.4M/expert,"Gate/Up: M=T~512, N=I_e=2,048, K=H=7,168 (2 GEMMs); Down: M=T~512, N=H=7,168, K=I_e=2,048","Backward: Gate/Up: ∇Wg/Wu \nabla W_g/W_u ∇Wg​/Wu​: M=I_e=2,048, N=T~512, K=H=7,168 (2); ∇X \nabla X ∇X: M=T~512, N=H=7,168, K=I_e=2,048; Down: ∇Wd \nabla W_d ∇Wd​: M=H=7,168, N=T~512, K=I_e=2,048; ∇Y \nabla Y ∇Y: M=T~512, N=I_e=2,048, K=H=7,168"
+MoE: Shared Expert FFN,"[4,096, 7168]","[4,096, 7168]",~29.4M,"Gate/Up: M=4,096, N=2,048, K=7,168 (2); Down: M=4,096, N=7,168, K=2,048","Backward: Gate/Up: ∇Wg/Wu \nabla W_g/W_u ∇Wg​/Wu​: M=2,048, N=4,096, K=7,168 (2); ∇X \nabla X ∇X: M=4,096, N=7,168, K=2,048; Down: ∇Wd \nabla W_d ∇Wd​: M=7,168, N=4,096, K=2,048; ∇Y \nabla Y ∇Y: M=4,096, N=2,048, K=7,168"
+MoE: Aggregate,"~[4,096, 7168]","[1, 4096, 7168]",0,All-to-all,All-to-all (reverse)
+Residual (MoE),"[1, 4096, 7168] + [1, 4096, 7168]","[1, 4096, 7168]",0,None,None (element-wise)
+LM Head,"[1, 4096, 7168]","[1, 4096, 128256]",~918M,"Forward: M=4,096, N=V=128,256, K=H=7,168","Backward: ∇Wlm \nabla W_{lm} ∇Wlm​: M=V=128,256, N=4,096, K=H=7,168; ∇X \nabla X ∇X: M=4,096, N=H=7,168, K=V=128,256"
