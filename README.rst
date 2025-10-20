@@ -1,10 +1,11 @@
 DeepSeekHarpoon
 ===============
 
-(WIP) This repo is an attempt at recreating the deepseek v3 pretraining model for academic and research purchases.
+(WIP) This repo is an attempt at recreating the deepseek v3 pretraining model for academic and research purposes.
+
 - currently only uses torch so no fancy parallelism yet outside of native pytorch bits, goal is to keep it simple and explainable.
 
-.. note:: We used the name harpoon because pytorch OOTB parallelism scheme pushed us to make the model long and skinny from a parrallelism perspective, hence the name harpoon.
+.. note:: We used the name harpoon because pytorch OOTB parallelism scheme pushed us to make the model long and skinny from a parrallelism perspective, hence the name harpoon... Arghhhhh!!!!!!!
 
 Prerequisits 
 ------------
@@ -25,5 +26,3 @@ This repo contains:
 - `CSV w/ back the napkin GEMM calcs <dsv3GEMMCalcs.csv>`_: GEMM dimension calcs, mostly back of the napkin for the curious at heart or someone interested in doing something hardcore..
 - `Course generic megatron parallelism calculator <model.py>`_: basic tool for precalculating if a parallelism scheme will fit into memory using megatron, this repo doesn't currently use megatron, but was considering it before doing the PT implimentation so someone might find this calculator handy, likely not given the rate at which megatron changes.
 - Other typical repo bits, but above is the primary stuff.
-
-Arghhhhh!!!!!!!
